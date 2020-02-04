@@ -1,7 +1,5 @@
 @if($estimate->user->shippingaddress)
-    @if($estimate->user->shippingaddress->name || $estimate->user->shippingaddress->address_street_1 || $estimate->user->shippingaddress->address_street_2 || $estimate->user->shippingaddress->country || $estimate->user->shippingaddress->state || $estimate->user->shippingaddress->city || $estimate->user->shippingaddress->zip || $estimate->user->phone)
-        <p class="ship-to">Ship To,</p>
-    @endif
+    <p class="ship-to">Ship To,</p>
     @if($estimate->user->shippingaddress->name)
         <p class="ship-user-name">
             {{$estimate->user->shippingaddress->name}}
@@ -9,19 +7,19 @@
     @endif
     <p class="ship-user-address">
         @if($estimate->user->shippingaddress->address_street_1)
-            {{$estimate->user->shippingaddress->address_street_1}}<br>
+            {!! nl2br(htmlspecialchars($estimate->user->shippingaddress->address_street_1)) !!}<br>
         @endif
 
         @if($estimate->user->shippingaddress->address_street_2)
-            {{$estimate->user->shippingaddress->address_street_2}}<br>
+            {!! nl2br(htmlspecialchars($estimate->user->shippingaddress->address_street_2)) !!}<br>
         @endif
 
-        @if($estimate->user->shippingaddress->city && $estimate->user->shippingaddress->city->name)
-            {{$estimate->user->shippingaddress->city->name}},
+        @if($estimate->user->shippingaddress->city && $estimate->user->shippingaddress->city)
+            {{$estimate->user->shippingaddress->city}},
         @endif
 
-        @if($estimate->user->shippingaddress->state && $estimate->user->shippingaddress->state->name)
-            {{$estimate->user->shippingaddress->state->name}}.
+        @if($estimate->user->shippingaddress->state && $estimate->user->shippingaddress->state)
+            {{$estimate->user->shippingaddress->state}}.
         @endif
 
         @if($estimate->user->shippingaddress->zip)

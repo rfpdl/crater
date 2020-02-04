@@ -18,7 +18,7 @@
             <span v-if="!$v.databaseData.app_url.required" class="text-danger">
               {{ $tc('validation.required') }}
             </span>
-            <span v-if="!$v.databaseData.app_url.url" class="text-danger">
+            <span v-if="!$v.databaseData.app_url.isUrl" class="text-danger">
               {{ $tc('validation.invalid_url') }}
             </span>
           </div>
@@ -184,7 +184,9 @@ export default {
       },
       app_url: {
         required,
-        url
+        isUrl (val) {
+          return this.$utils.checkValidUrl(val)
+        }
       }
     }
   },
@@ -201,13 +203,15 @@ export default {
           this.$emit('next')
           window.toastr['success'](this.$t('wizard.success.' + response.data.success))
           return true
-        } else {
+        } else if (response.data.error) {
           window.toastr['error'](this.$t('wizard.errors.' + response.data.error))
+        } else if (response.data.error_message) {
+          window.toastr['error'](response.data.error_message)
         }
-        this.loading = false
       } catch (e) {
-        console.log(e.response)
         window.toastr['error'](e.response.data.message)
+      } finally {
+        this.loading = false
       }
     }
   }

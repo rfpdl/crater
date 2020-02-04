@@ -1,8 +1,11 @@
 import Vue from 'vue'
 import VueI18n from 'vue-i18n'
-import en from './en'
-import fr from './fr'
-import es from './es'
+import en from './en.json'
+import fr from './fr.json'
+import es from './es.json'
+import ar from './ar.json'
+import de from './de.json'
+import pt_BR from './pt-br.json'
 
 Vue.use(VueI18n)
 
@@ -11,7 +14,10 @@ const i18n = new VueI18n({
   messages: {
     en,
     fr,
-    es
+    es,
+    ar,
+    de,
+    pt_BR
   }
 })
 

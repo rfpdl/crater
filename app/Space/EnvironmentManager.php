@@ -38,7 +38,7 @@ class EnvironmentManager
             'DB_PORT='.config('database.connections.'.config('database.default').'.port')."\n".
             'DB_DATABASE='.config('database.connections.'.config('database.default').'.database')."\n".
             'DB_USERNAME='.config('database.connections.'.config('database.default').'.username')."\n".
-            'DB_PASSWORD='.config('database.connections.'.config('database.default').'.password')."\n\n";
+            'DB_PASSWORD="'.config('database.connections.'.config('database.default').'.password')."\"\n\n";
 
         $newDatabaseData =
             'DB_CONNECTION='.$request->database_connection."\n".
@@ -46,19 +46,23 @@ class EnvironmentManager
             'DB_PORT='.$request->database_port."\n".
             'DB_DATABASE='.$request->database_name."\n".
             'DB_USERNAME='.$request->database_username."\n".
-            'DB_PASSWORD='.$request->database_password."\n\n";
+            'DB_PASSWORD="'.$request->database_password."\"\n\n";
 
-        if (! $this->checkDatabaseConnection($request)) {
+        try {
 
-            return [
-                'error' => 'connection_failed'
-            ];
-        } else {
-            if(count(DB::connection()->select('SHOW TABLES'))) {
+            $this->checkDatabaseConnection($request);
+
+            if(\Schema::hasTable('users') ) {
                 return [
                     'error' => 'database_should_be_empty'
                 ];
             }
+
+        } catch (Exception $e) {
+
+            return [
+                'error_message' => $e->getMessage()
+            ];
         }
 
         try {
@@ -117,8 +121,6 @@ class EnvironmentManager
                     FILE_APPEND
                 );
             }
-
-
 
         } catch (Exception $e) {
             return [
@@ -316,12 +318,6 @@ class EnvironmentManager
             ],
         ]);
 
-        try {
-            DB::connection()->getPdo();
-
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
+        return DB::connection()->getPdo();
     }
 }

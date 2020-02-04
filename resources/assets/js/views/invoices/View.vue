@@ -19,7 +19,6 @@
           v-if="invoice.status === 'DRAFT'"
           :loading="isSendingEmail"
           :disabled="isSendingEmail"
-          :outline="true"
           color="theme"
           @click="onSendInvoice"
         >
@@ -73,7 +72,9 @@
                 <font-awesome-icon icon="filter" />
               </base-button>
             </a>
-
+            <div class="filter-title">
+              {{ $t('general.sort_by') }}
+            </div>
             <div class="filter-items">
               <input
                 id="filter_invoice_date"
@@ -111,7 +112,7 @@
               <label class="inv-label" for="filter_invoice_number">{{ $t('invoices.invoice_number') }}</label>
             </div>
           </v-dropdown>
-          <base-button class="inv-button inv-filter-sorting-btn" color="default" size="medium" @click="sortData">
+          <base-button v-tooltip.top-center="{ content: getOrderName }" class="inv-button inv-filter-sorting-btn" color="default" size="medium" @click="sortData">
             <font-awesome-icon v-if="getOrderBy" icon="sort-amount-up" />
             <font-awesome-icon v-else icon="sort-amount-down" />
           </base-button>
@@ -154,6 +155,7 @@ export default {
       id: null,
       count: null,
       invoices: [],
+      invoice: null,
       currency: null,
       searchData: {
         orderBy: null,
@@ -167,21 +169,30 @@ export default {
     }
   },
   computed: {
-    invoice () {
-      return this.$store.getters['invoice/getInvoice'](this.$route.params.id)
-    },
     getOrderBy () {
       if (this.searchData.orderBy === 'asc' || this.searchData.orderBy == null) {
         return true
       }
       return false
     },
+    getOrderName () {
+      if (this.getOrderBy) {
+        return this.$t('general.ascending')
+      }
+      return this.$t('general.descending')
+    },
     shareableLink () {
       return `/invoices/pdf/${this.invoice.unique_hash}`
     }
   },
+  watch: {
+    $route (to, from) {
+      this.loadInvoice()
+    }
+  },
   created () {
     this.loadInvoices()
+    this.loadInvoice()
     this.onSearch = _.debounce(this.onSearch, 500)
   },
   methods: {
@@ -192,12 +203,20 @@ export default {
       'markAsSent',
       'sendEmail',
       'deleteInvoice',
-      'selectInvoice'
+      'selectInvoice',
+      'fetchViewInvoice'
     ]),
     async loadInvoices () {
       let response = await this.fetchInvoices()
       if (response.data) {
         this.invoices = response.data.invoices.data
+      }
+    },
+    async loadInvoice () {
+      let response = await this.fetchViewInvoice(this.$route.params.id)
+
+      if (response.data) {
+        this.invoice = response.data.invoice
       }
     },
     async onSearch () {
@@ -286,7 +305,7 @@ export default {
           let request = await this.deleteInvoice(this.id)
           if (request.data.success) {
             window.toastr['success'](this.$tc('invoices.deleted_message', 1))
-            this.$router.push('/admin/invoices/')
+            this.$router.push('/admin/invoices')
           } else if (request.data.error) {
             window.toastr['error'](request.data.message)
           }

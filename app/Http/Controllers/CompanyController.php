@@ -20,11 +20,22 @@ use Crater\CompanySetting;
 
 class CompanyController extends Controller
 {
+    /**
+     * Retrive the Admin account.
+     * @return \Crater\User
+     */
     public function getAdmin()
     {
         return User::find(1);
     }
 
+    /**
+     * Update the Admin profile.
+     * Includes name, email and (or) password
+     *
+     * @param  \Crater\Http\Requests\ProfileRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateAdminProfile(ProfileRequest $request)
     {
         $verifyEmail = User::where('email', $request->email)->first();
@@ -54,15 +65,30 @@ class CompanyController extends Controller
         ]);
     }
 
+
+
+    /**
+     * Get Admin Account alongside the country from the addresses table and
+     * The company from companies table
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getAdminCompany()
     {
-        $user = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city', 'company'])->find(1);
+        $user = User::with(['addresses', 'addresses.country', 'company'])->find(1);
 
         return response()->json([
             'user' => $user
         ]);
     }
 
+
+
+    /**
+     * Update Admin Company Details
+     * @param \Crater\Http\Requests\CompanyRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateAdminCompany(CompanyRequest $request)
     {
         $user = User::find(1);
@@ -75,9 +101,9 @@ class CompanyController extends Controller
             $company->addMediaFromRequest('logo')->toMediaCollection('logo');
         }
 
-        $fields = $request->only(['address_street_1', 'address_street_2', 'city_id', 'state_id', 'country_id', 'zip', 'phone']);
+        $fields = $request->only(['address_street_1', 'address_street_2', 'city', 'state', 'country_id', 'zip', 'phone']);
         $address = Address::updateOrCreate(['user_id' => 1], $fields);
-        $user = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city', 'company'])->find(1);
+        $user = User::with(['addresses', 'addresses.country', 'company'])->find(1);
 
         return response()->json([
             'user' => $user,
@@ -85,6 +111,11 @@ class CompanyController extends Controller
         ]);
     }
 
+    /**
+     * Retrieve General App Settings
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getGeneralSettings(Request $request)
     {
         $date_formats = DateFormatter::get_list();
@@ -115,7 +146,10 @@ class CompanyController extends Controller
         $languages = [
             ["code"=>"en", "name" => "English"],
             ["code"=>"fr", "name" => "French"],
-            ["code"=>"es", "name" => "Spanish"]
+            ["code"=>"es", "name" => "Spanish"],
+            ["code"=>"ar", "name" => "العربية"],
+            ["code"=>"de", "name" => "German"],
+            ["code"=>"pt_BR", "name" => "Brazilian Portuguese"],
         ];
 
         return response()->json([
@@ -133,6 +167,13 @@ class CompanyController extends Controller
         ]);
     }
 
+
+
+    /**
+     * Update General App Settings
+     * @param \Crater\Http\Requests\CompanySettingRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateGeneralSettings(CompanySettingRequest $request)
     {
         $sets = [
@@ -153,6 +194,63 @@ class CompanyController extends Controller
         ]);
     }
 
+    public function getCustomizeSetting (Request $request)
+    {
+        $invoice_prefix = CompanySetting::getSetting('invoice_prefix', $request->header('company'));
+        $invoice_auto_generate = CompanySetting::getSetting('invoice_auto_generate', $request->header('company'));
+
+        $estimate_prefix = CompanySetting::getSetting('estimate_prefix', $request->header('company'));
+        $estimate_auto_generate  = CompanySetting::getSetting('estimate_auto_generate', $request->header('company'));
+
+        $payment_prefix = CompanySetting::getSetting('payment_prefix', $request->header('company'));
+        $payment_auto_generate = CompanySetting::getSetting('payment_auto_generate', $request->header('company'));
+
+        return  response()->json([
+            'invoice_prefix' => $invoice_prefix,
+            'invoice_auto_generate' => $invoice_auto_generate,
+            'estimate_prefix' => $estimate_prefix,
+            'estimate_auto_generate' => $estimate_auto_generate,
+            'payment_prefix' => $payment_prefix,
+            'payment_auto_generate' => $payment_auto_generate,
+        ]);
+    }
+
+    public function updateCustomizeSetting (Request $request)
+    {
+        $sets = [];
+
+        if ($request->type == "PAYMENTS") {
+            $sets = [
+                'payment_prefix'
+            ];
+        }
+
+        if ($request->type == "INVOICES") {
+            $sets = [
+                'invoice_prefix',
+            ];
+        }
+
+        if ($request->type == "ESTIMATES") {
+            $sets = [
+                'estimate_prefix',
+            ];
+        }
+
+        foreach ($sets as $key) {
+            CompanySetting::setSetting($key, $request->$key, $request->header('company'));
+        }
+
+        return response()->json([
+            'success' => true
+        ]);
+    }
+
+    /**
+     * Update a specific Company Setting
+     * @param \Crater\Http\Requests\SettingRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateSetting(SettingRequest $request)
     {
         CompanySetting::setSetting($request->key, $request->value, $request->header('company'));
@@ -162,6 +260,11 @@ class CompanyController extends Controller
         ]);
     }
 
+    /**
+     * Retrieve Specific Company Setting
+     * @param \Crater\Http\Requests\SettingKeyRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getSetting(SettingKeyRequest $request)
     {
         $setting = CompanySetting::getSetting($request->key, $request->header('company'));
@@ -171,6 +274,12 @@ class CompanyController extends Controller
         ]);
     }
 
+
+    /**
+     * Retrieve App Colors
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getColors(Request $request)
     {
         $colors = [
@@ -205,7 +314,7 @@ class CompanyController extends Controller
      * Upload the company logo to storage.
      *
      * @param  \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function uploadCompanyLogo(Request $request)
     {
@@ -224,6 +333,34 @@ class CompanyController extends Controller
         }
 
         return response()->json([
+            'success' => true
+        ]);
+    }
+
+    /**
+     * Upload the Admin Avatar to public storage.
+     *
+     * @param  \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadAdminAvatar(Request $request)
+    {
+        $data = json_decode($request->admin_avatar);
+
+        if($data) {
+            $user = auth()->user();
+
+            if($user) {
+                $user->clearMediaCollection('admin_avatar');
+
+                $user->addMediaFromBase64($data->data)
+                    ->usingFileName($data->name)
+                    ->toMediaCollection('admin_avatar');
+            }
+        }
+
+        return response()->json([
+            'user' => $user,
             'success' => true
         ]);
     }

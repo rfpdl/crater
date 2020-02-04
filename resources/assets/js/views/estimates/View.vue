@@ -20,7 +20,6 @@
             v-if="estimate.status === 'DRAFT'"
             :loading="isSendingEmail"
             :disabled="isSendingEmail"
-            :outline="true"
             color="theme"
             @click="onSendEstimate"
           >
@@ -69,7 +68,9 @@
                 <font-awesome-icon icon="filter" />
               </base-button>
             </a>
-
+            <div class="filter-title">
+              {{ $t('general.sort_by') }}
+            </div>
             <div class="filter-items">
               <input
                 id="filter_estimate_date"
@@ -107,7 +108,7 @@
               <label class="inv-label" for="filter_estimate_number">{{ $t('estimates.estimate_number') }}</label>
             </div>
           </v-dropdown>
-          <base-button class="inv-button inv-filter-sorting-btn" color="default" size="medium" @click="sortData">
+          <base-button v-tooltip.top-center="{ content: getOrderName }" class="inv-button inv-filter-sorting-btn" color="default" size="medium" @click="sortData">
             <font-awesome-icon v-if="getOrderBy" icon="sort-amount-up" />
             <font-awesome-icon v-else icon="sort-amount-down" />
           </base-button>
@@ -123,7 +124,7 @@
           <div class="left">
             <div class="inv-name">{{ estimate.user.name }}</div>
             <div class="inv-number">{{ estimate.estimate_number }}</div>
-            <div :class="'est-status-'+estimate.status.toLowerCase()"class="inv-status">{{ estimate.status }}</div>
+            <div :class="'est-status-'+estimate.status.toLowerCase()" class="inv-status">{{ estimate.status }}</div>
           </div>
           <div class="right">
             <div class="inv-amount" v-html="$utils.formatMoney(estimate.total, estimate.user.currency)" />
@@ -151,6 +152,7 @@ export default {
       id: null,
       count: null,
       estimates: [],
+      estimate: null,
       currency: null,
       searchData: {
         orderBy: null,
@@ -165,23 +167,30 @@ export default {
     }
   },
   computed: {
-    estimate () {
-      return this.$store.getters['estimate/getEstimate'](this.$route.params.id)
-    },
-
     getOrderBy () {
       if (this.searchData.orderBy === 'asc' || this.searchData.orderBy == null) {
         return true
       }
       return false
     },
-
+    getOrderName () {
+      if (this.getOrderBy) {
+        return this.$t('general.ascending')
+      }
+      return this.$t('general.descending')
+    },
     shareableLink () {
       return `/estimates/pdf/${this.estimate.unique_hash}`
     }
   },
+  watch: {
+    $route (to, from) {
+      this.loadEstimate()
+    }
+  },
   created () {
     this.loadEstimates()
+    this.loadEstimate()
     this.onSearched = _.debounce(this.onSearched, 500)
   },
   methods: {
@@ -192,12 +201,20 @@ export default {
       'markAsSent',
       'sendEmail',
       'deleteEstimate',
-      'selectEstimate'
+      'selectEstimate',
+      'fetchViewEstimate'
     ]),
     async loadEstimates () {
       let response = await this.fetchEstimates()
       if (response.data) {
         this.estimates = response.data.estimates.data
+      }
+    },
+    async loadEstimate () {
+      let response = await this.fetchViewEstimate(this.$route.params.id)
+
+      if (response.data) {
+        this.estimate = response.data.estimate
       }
     },
     async onSearched () {

@@ -6,6 +6,7 @@ use Crater\Invoice;
 use PDF;
 use Crater\CompanySetting;
 use Crater\Estimate;
+use Crater\Payment;
 use Crater\User;
 use Crater\Company;
 use Crater\InvoiceTemplate;
@@ -90,7 +91,7 @@ class FrontendController extends Controller
             }
         }
 
-        $companyAddress = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city'])->find(1);
+        $companyAddress = User::with(['addresses', 'addresses.country'])->find(1);
 
         $colors = [
             'invoice_primary_color',
@@ -118,6 +119,11 @@ class FrontendController extends Controller
         return $pdf->stream();
     }
 
+
+    /**
+    *
+     * @return \Illuminate\Http\Response
+     */
     public function getCustomerInvoicePdf($id)
     {
         $invoice = Invoice::with([
@@ -189,7 +195,7 @@ class FrontendController extends Controller
             }
         }
 
-        $companyAddress = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city'])->find(1);
+        $companyAddress = User::with(['addresses', 'addresses.country'])->find(1);
 
         $colors = [
             'invoice_primary_color',
@@ -262,7 +268,7 @@ class FrontendController extends Controller
         $estimateTemplate = EstimateTemplate::find($estimate->estimate_template_id);
 
         $company = Company::find($estimate->company_id);
-        $companyAddress = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city'])->find(1);
+        $companyAddress = User::with(['addresses', 'addresses.country'])->find(1);
         $logo = $company->getMedia('logo')->first();
 
         if($logo) {
@@ -338,7 +344,7 @@ class FrontendController extends Controller
 
         $invoiceTemplate = InvoiceTemplate::find($invoice->invoice_template_id);
         $company = Company::find($invoice->company_id);
-        $companyAddress = User::with(['addresses', 'addresses.country', 'addresses.state', 'addresses.city'])->find(1);
+        $companyAddress = User::with(['addresses', 'addresses.country'])->find(1);
 
         $logo = $company->getMedia('logo')->first();
 
@@ -368,6 +374,36 @@ class FrontendController extends Controller
             'taxes' => $taxes
         ]);
         $pdf = PDF::loadView('app.pdf.invoice.'.$invoiceTemplate->view);
+
+        return $pdf->stream();
+    }
+
+    public function getPaymentPdf($id)
+    {
+        $payment = Payment::with([
+                'user',
+                'invoice',
+                'paymentMethod'
+            ])
+            ->where('unique_hash', $id)
+            ->first();
+
+        $company = Company::find($payment->company_id);
+        $companyAddress = User::with(['addresses', 'addresses.country'])->find(1);
+
+        $logo = $company->getMedia('logo')->first();
+
+        if($logo) {
+            $logo = $logo->getFullUrl();
+        }
+
+        view()->share([
+            'payment' => $payment,
+            'company_address' => $companyAddress,
+            'logo' => $logo ?? null
+        ]);
+
+        $pdf = PDF::loadView('app.pdf.payment.payment');
 
         return $pdf->stream();
     }

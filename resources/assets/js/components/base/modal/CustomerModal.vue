@@ -55,6 +55,7 @@
                     v-model="currency"
                     :options="currencies"
                     :searchable="true"
+                    :allow-empty="false"
                     :show-labels="false"
                     :placeholder="$t('customers.select_currency')"
                     label="name"
@@ -163,15 +164,10 @@
               <div class="form-group row">
                 <label class="col-sm-4 col-form-label input-label">{{ $t('customers.state') }}</label>
                 <div class="col-sm-7">
-                  <base-select
-                    v-model="billingState"
-                    :options="billingStates"
-                    :searchable="true"
-                    :show-labels="false"
-                    :placeholder="$t('general.select_state')"
-                    :disabled="isDisabledBillingState"
-                    track-by="id"
-                    label="name"
+                  <base-input
+                    v-model="billing.state"
+                    type="text"
+                    name="billingState"
                   />
                 </div>
               </div>
@@ -179,28 +175,13 @@
               <div class="form-group row">
                 <label class="col-sm-4 col-form-label input-label">{{ $t('customers.city') }}</label>
                 <div class="col-sm-7">
-                  <base-select
-                    v-model="billingCity"
-                    :options="billingCities"
-                    :searchable="true"
-                    :show-labels="false"
-                    :placeholder="$t('general.select_city')"
-                    :disabled="isDisabledBillingCity"
-                    track-by="id"
-                    label="name"
+                  <base-input
+                    v-model="billing.city"
+                    type="text"
+                    name="billingCity"
                   />
                 </div>
               </div>
-
-              <!-- <div class="form-group row">
-                <label class="col-sm-4 col-form-label">Zip Code</label>
-                <div class="col-sm-7">
-                  <base-input
-                    v-model="billing.zip"
-                    type="text"
-                  />
-                </div>
-              </div> -->
 
               <div class="form-group row">
                 <label class="col-sm-4 col-form-label input-label">{{ $t('customers.zip_code') }}</label>
@@ -294,15 +275,10 @@
               <div class="form-group row">
                 <label class="col-sm-4 col-form-label input-label">{{ $t('customers.state') }}</label>
                 <div class="col-sm-7">
-                  <base-select
-                    v-model="shippingState"
-                    :options="shippingStates"
-                    :searchable="true"
-                    :show-labels="false"
-                    :placeholder="$t('general.select_state')"
-                    :disabled="isDisabledShippingState"
-                    track-by="id"
-                    label="name"
+                  <base-input
+                    v-model="shipping.state"
+                    type="text"
+                    name="shippingState"
                   />
                 </div>
               </div>
@@ -310,15 +286,10 @@
               <div class="form-group row">
                 <label class="col-sm-4 col-form-label input-label">{{ $t('customers.city') }}</label>
                 <div class="col-sm-7">
-                  <base-select
-                    v-model="shippingCity"
-                    :options="shippingCities"
-                    :searchable="true"
-                    :show-labels="false"
-                    :placeholder="$t('general.select_city')"
-                    :disabled="isDisabledShippingCity"
-                    track-by="id"
-                    label="name"
+                  <base-input
+                    v-model="shipping.city"
+                    type="text"
+                    name="shippingCity"
                   />
                 </div>
               </div>
@@ -370,18 +341,11 @@ export default {
   mixins: [validationMixin],
   data () {
     return {
+      isEdit: false,
       isLoading: false,
       countryList: [],
-      billingStates: [],
-      billingCities: [],
       billingCountry: null,
-      billingState: null,
-      billingCity: null,
-      shippingStates: [],
-      shippingCities: [],
       shippingCountry: null,
-      shippingState: null,
-      shippingCity: null,
       isCopyFromBilling: false,
       currencyList: [],
       currency: '',
@@ -436,66 +400,32 @@ export default {
     ...mapGetters('currency', [
       'defaultCurrency',
       'currencies'
+    ]),
+    ...mapGetters('modal', [
+      'modalDataID',
+      'modalData',
+      'modalActive'
     ])
   },
   watch: {
+    'modalDataID' (val) {
+      if (val) {
+        this.isEdit = true
+        this.setData()
+      } else {
+        this.isEdit = false
+      }
+    },
     billingCountry () {
       if (this.billingCountry) {
         this.billing.country_id = this.billingCountry.id
-        this.isDisabledBillingState = false
-        this.fetchBillingStates(this.billingCountry.id)
-        this.billingState = null
-        this.billingCity = null
         return true
-      }
-    },
-    billingState () {
-      if (this.billingState) {
-        this.billing.state_id = this.billingState.id
-        this.isDisabledBillingCity = false
-        this.fetchBillingCities(this.billingState.id)
-        this.billingCity = null
-        return true
-      }
-      this.billingCity = null
-      this.isDisabledBillingCity = true
-    },
-    billingCity () {
-      if (this.billingCity) {
-        this.billing.city_id = this.billingCity.id
       }
     },
     shippingCountry () {
       if (this.shippingCountry) {
         this.shipping.country_id = this.shippingCountry.id
-        this.isDisabledShippingState = false
-        this.fetchShippingStates(this.shippingCountry.id)
-        if (this.isCopyFromBilling) {
-          return true
-        }
-        this.shippingState = null
-        this.shippingCity = null
         return true
-      }
-    },
-    shippingState () {
-      if (this.shippingState) {
-        this.shipping.state_id = this.shippingState.id
-        this.isDisabledShippingCity = false
-        this.fetchShippingCities(this.shippingState.id)
-        if (this.isCopyFromBilling) {
-          this.isCopyFromBilling = false
-          return true
-        }
-        this.shippingCity = null
-        return true
-      }
-      this.shippingCity = null
-      this.isDisabledShippingCity = true
-    },
-    shippingCity () {
-      if (this.shippingCity) {
-        this.shipping.city_id = this.shippingCity.id
       }
     }
   },
@@ -503,6 +433,9 @@ export default {
     this.$refs.name.focus = true
     this.currency = this.defaultCurrency
     this.fetchCountry()
+    if (this.modalDataID) {
+      this.setData()
+    }
   },
   methods: {
     ...mapActions('invoice', {
@@ -529,16 +462,8 @@ export default {
         addresses: []
       }
 
-      this.billingStates = []
-      this.billingCities = []
       this.billingCountry = null
-      this.billingState = null
-      this.billingCity = null
-      this.shippingStates = []
-      this.shippingCities = []
       this.shippingCountry = null
-      this.shippingState = null
-      this.shippingCity = null
 
       this.billing = {...AddressStub}
       this.shipping = {...AddressStub}
@@ -553,13 +478,9 @@ export default {
         this.isCopyFromBilling = true
         this.shipping = {...this.billing, type: 'shipping'}
         this.shippingCountry = this.billingCountry
-        this.shippingState = this.billingState
-        this.shippingCity = this.billingCity
       } else {
         this.shipping = {...AddressStub, type: 'shipping'}
         this.shippingCountry = null
-        this.shippingState = null
-        this.shippingCity = null
       }
     },
     async loadData () {
@@ -589,6 +510,24 @@ export default {
       this.formData.addresses = [{...this.shipping, type: 'shipping'}]
       return true
     },
+    async setData () {
+      this.formData.id = this.modalData.id
+      this.formData.name = this.modalData.name
+      this.formData.email = this.modalData.email
+      this.formData.contact_name = this.modalData.contact_name
+      this.formData.phone = this.modalData.phone
+      this.formData.website = this.modalData.website
+      this.currency = this.modalData.currency
+
+      if (this.modalData.billing_address) {
+        this.billing = this.modalData.billing_address
+        this.billingCountry = this.modalData.billing_address.country
+      }
+      if (this.modalData.shipping_address) {
+        this.shipping = this.modalData.shipping_address
+        this.shippingCountry = this.modalData.shipping_address.country
+      }
+    },
     async submitCustomerData () {
       this.$v.formData.$touch()
 
@@ -606,14 +545,23 @@ export default {
         this.formData.currency_id = this.defaultCurrency.id
       }
       try {
-        let response = await this.addCustomer(this.formData)
+        let response = null
+        if (this.modalDataID) {
+          response = await this.updateCustomer(this.formData)
+        } else {
+          response = await this.addCustomer(this.formData)
+        }
         if (response.data) {
-          window.toastr['success'](this.$tc('customers.created_message'))
+          if (this.modalDataID) {
+            window.toastr['success'](this.$tc('customers.updated_message'))
+          } else {
+            window.toastr['success'](this.$tc('customers.created_message'))
+          }
           this.isLoading = false
-          if (this.$route.name === 'invoices.create') {
+          if (this.$route.name === 'invoices.create' || this.$route.name === 'invoices.edit') {
             this.setInvoiceCustomer(response.data.customer.id)
           }
-          if (this.$route.name === 'estimates.create') {
+          if (this.$route.name === 'estimates.create' || this.$route.name === 'estimates.edit') {
             this.setEstimateCustomer(response.data.customer.id)
           }
           this.resetData()
@@ -632,30 +580,6 @@ export default {
       let res = await window.axios.get('/api/countries')
       if (res) {
         this.countryList = res.data.countries
-      }
-    },
-    async fetchBillingStates (id) {
-      let res = await window.axios.get(`/api/states/${id}`)
-      if (res) {
-        this.billingStates = res.data.states
-      }
-    },
-    async fetchBillingCities (id) {
-      let res = await window.axios.get(`/api/cities/${id}`)
-      if (res) {
-        this.billingCities = res.data.cities
-      }
-    },
-    async fetchShippingStates (id) {
-      let res = await window.axios.get(`/api/states/${id}`)
-      if (res) {
-        this.shippingStates = res.data.states
-      }
-    },
-    async fetchShippingCities (id) {
-      let res = await window.axios.get(`/api/cities/${id}`)
-      if (res) {
-        this.shippingCities = res.data.cities
       }
     }
   }

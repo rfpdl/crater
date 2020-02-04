@@ -1,7 +1,5 @@
 @if($invoice->user->billingaddress)
-    @if($invoice->user->billingaddress->name || $invoice->user->billingaddress->address_street_1 || $invoice->user->billingaddress->address_street_2 || $invoice->user->billingaddress->country || $invoice->user->billingaddress->state || $invoice->user->billingaddress->city || $invoice->user->billingaddress->zip || $invoice->user->billingaddress->phone)
-        <p class="bill-to">Bill To,</p>
-    @endif
+    <p class="bill-to">Bill To,</p>
     @if($invoice->user->billingaddress->name)
         <p class="bill-user-name">
             {{$invoice->user->billingaddress->name}}
@@ -9,16 +7,16 @@
     @endif
     <p class="bill-user-address">
         @if($invoice->user->billingaddress->address_street_1)
-            {{$invoice->user->billingaddress->address_street_1}}<br>
+            {!! nl2br(htmlspecialchars($invoice->user->billingaddress->address_street_1)) !!}<br>
         @endif
         @if($invoice->user->billingaddress->address_street_2)
-            {{$invoice->user->billingaddress->address_street_2}}<br>
+            {!! nl2br(htmlspecialchars($invoice->user->billingaddress->address_street_2)) !!}<br>
         @endif
-        @if($invoice->user->billingaddress->city && $invoice->user->billingaddress->city->name)
-            {{$invoice->user->billingaddress->city->name}},
+        @if($invoice->user->billingaddress->city && $invoice->user->billingaddress->city)
+            {{$invoice->user->billingaddress->city}},
         @endif
-        @if($invoice->user->billingaddress->state && $invoice->user->billingaddress->state->name)
-            {{$invoice->user->billingaddress->state->name}}.
+        @if($invoice->user->billingaddress->state && $invoice->user->billingaddress->state)
+            {{$invoice->user->billingaddress->state}}.
         @endif
         @if($invoice->user->billingaddress->zip)
             {{$invoice->user->billingaddress->zip}}<br>

@@ -40,16 +40,15 @@
             <div class="col-sm-6">
               <div class="form-group">
                 <label class="form-label">{{ $t('payments.payment_number') }}</label><span class="text-danger"> *</span>
-                <base-input
-                  :invalid="$v.formData.payment_number.$error"
-                  v-model.trim="formData.payment_number"
-                  read-only
-                  type="text"
-                  name="email"
-                  @input="$v.formData.payment_number.$touch()"
+                <base-prefix-input
+                  :invalid="$v.paymentNumAttribute.$error"
+                  v-model.trim="paymentNumAttribute"
+                  :prefix="paymentPrefix"
+                  @input="$v.paymentNumAttribute.$touch()"
                 />
-                <div v-if="$v.formData.payment_number.$error">
-                  <span v-if="!$v.formData.payment_number.required" class="text-danger">{{ $tc('validation.required') }}</span>
+                <div v-if="$v.paymentNumAttribute.$error">
+                  <span v-if="!$v.paymentNumAttribute.required" class="text-danger">{{ $tc('validation.required') }}</span>
+                  <span v-if="!$v.paymentNumAttribute.numeric" class="text-danger">{{ $tc('validation.numbers_only') }}</span>
                 </div>
               </div>
             </div>
@@ -83,7 +82,7 @@
                   :allow-empty="false"
                   :disabled="isEdit"
                   :placeholder="$t('invoices.select_invoice')"
-                  label="invoice_number"
+                  :custom-label="invoiceWithAmount"
                   track-by="invoice_number"
                 />
               </div>
@@ -110,12 +109,20 @@
               <div class="form-group">
                 <label class="form-label">{{ $t('payments.payment_mode') }}</label>
                 <base-select
-                  v-model="formData.payment_mode"
-                  :options="getPaymentMode"
+                  v-model="formData.payment_method"
+                  :options="paymentModes"
                   :searchable="true"
                   :show-labels="false"
                   :placeholder="$t('payments.select_payment_mode')"
-                />
+                  label="name"
+                >
+                  <div slot="afterList">
+                    <button type="button" class="list-add-button" @click="addPaymentMode">
+                      <font-awesome-icon class="icon" icon="cart-plus" />
+                      <label>{{ $t('settings.customization.payments.add_payment_mode') }}</label>
+                    </button>
+                  </div>
+                </base-select>
               </div>
             </div>
             <div class="col-sm-12 ">
@@ -155,7 +162,7 @@ import { mapActions, mapGetters } from 'vuex'
 import MultiSelect from 'vue-multiselect'
 import { validationMixin } from 'vuelidate'
 import moment from 'moment'
-const { required, between, maxLength } = require('vuelidate/lib/validators')
+const { required, between, maxLength, numeric } = require('vuelidate/lib/validators')
 
 export default {
   components: { MultiSelect },
@@ -167,9 +174,10 @@ export default {
         payment_number: null,
         payment_date: null,
         amount: 0,
-        payment_mode: null,
+        payment_method: null,
         invoice_id: null,
-        notes: null
+        notes: null,
+        payment_method_id: null
       },
       money: {
         decimal: '.',
@@ -183,7 +191,10 @@ export default {
       customerList: [],
       invoiceList: [],
       isLoading: false,
-      maxPayableAmount: Number.MAX_SAFE_INTEGER
+      maxPayableAmount: Number.MAX_SAFE_INTEGER,
+      isSettingInitialData: true,
+      paymentNumAttribute: null,
+      paymentPrefix: ''
     }
   },
   validations () {
@@ -192,9 +203,6 @@ export default {
         required
       },
       formData: {
-        payment_number: {
-          required
-        },
         payment_date: {
           required
         },
@@ -205,6 +213,10 @@ export default {
         notes: {
           maxLength: maxLength(255)
         }
+      },
+      paymentNumAttribute: {
+        required,
+        numeric
       }
     }
   },
@@ -212,9 +224,9 @@ export default {
     ...mapGetters('currency', [
       'defaultCurrencyForInput'
     ]),
-    getPaymentMode () {
-      return ['Cash', 'Check', 'Credit Card', 'Bank Transfer']
-    },
+    ...mapGetters('payment', [
+      'paymentModes'
+    ]),
     amount: {
       get: function () {
         return this.formData.amount / 100
@@ -246,10 +258,15 @@ export default {
   watch: {
     customer (newValue) {
       this.formData.user_id = newValue.id
-      this.invoice = null
-      this.formData.amount = 0
-      this.invoiceList = []
       if (!this.isEdit) {
+        if (this.isSettingInitialData) {
+          this.isSettingInitialData = false
+        } else {
+          this.invoice = null
+          this.formData.invoice_id = null
+        }
+        this.formData.amount = 0
+        this.invoiceList = []
         this.fetchCustomerInvoices(newValue.id)
       }
     },
@@ -263,9 +280,6 @@ export default {
     }
   },
   async mounted () {
-    // if (!this.$route.params.id) {
-    //   this.$refs.baseSelect.$refs.search.focus()
-    // }
     this.$nextTick(() => {
       this.loadData()
       if (this.$route.params.id && !this.isEdit) {
@@ -281,17 +295,31 @@ export default {
       'fetchCreatePayment',
       'addPayment',
       'updatePayment',
-      'fetchPayment'
+      'fetchEditPaymentData'
     ]),
+    ...mapActions('modal', [
+      'openModal'
+    ]),
+    invoiceWithAmount ({ invoice_number, due_amount }) {
+      return `${invoice_number} (${this.$utils.formatGraphMoney(due_amount, this.customer.currency)})`
+    },
+    async addPaymentMode () {
+      this.openModal({
+        'title': 'Add Payment Mode',
+        'componentName': 'PaymentMode'
+      })
+    },
     async loadData () {
       if (this.isEdit) {
-        let response = await this.fetchPayment(this.$route.params.id)
+        let response = await this.fetchEditPaymentData(this.$route.params.id)
         this.customerList = response.data.customers
         this.formData = { ...response.data.payment }
         this.customer = response.data.payment.user
         this.formData.payment_date = moment(response.data.payment.payment_date, 'YYYY-MM-DD').toString()
         this.formData.amount = parseFloat(response.data.payment.amount)
-        this.maxPayableAmount = response.data.payment.amount
+        this.paymentPrefix = response.data.payment_prefix
+        this.paymentNumAttribute = response.data.nextPaymentNumber
+        this.formData.payment_method = response.data.payment.payment_method
         if (response.data.payment.invoice !== null) {
           this.maxPayableAmount = parseInt(response.data.payment.amount) + parseInt(response.data.payment.invoice.due_amount)
           this.invoice = response.data.payment.invoice
@@ -300,7 +328,8 @@ export default {
       } else {
         let response = await this.fetchCreatePayment()
         this.customerList = response.data.customers
-        this.formData.payment_number = response.data.nextPaymentNumber
+        this.paymentNumAttribute = response.data.nextPaymentNumberAttribute
+        this.paymentPrefix = response.data.payment_prefix
         this.formData.payment_date = moment(new Date()).toString()
       }
       return true
@@ -327,43 +356,66 @@ export default {
       if (this.$v.$invalid) {
         return true
       }
+
+      this.formData.payment_number = this.paymentPrefix + '-' + this.paymentNumAttribute
+
       if (this.isEdit) {
         let data = {
           editData: {
             ...this.formData,
+            payment_method_id: this.formData.payment_method ? this.formData.payment_method.id : null,
             payment_date: moment(this.formData.payment_date).format('DD/MM/YYYY')
           },
           id: this.$route.params.id
         }
-        let response = await this.updatePayment(data)
-        if (response.data.success) {
-          window.toastr['success'](this.$t('payments.updated_message'))
-          this.$router.push('/admin/payments')
-          return true
+        try {
+          let response = await this.updatePayment(data)
+          if (response.data.success) {
+            window.toastr['success'](this.$t('payments.updated_message'))
+            this.$router.push('/admin/payments')
+            return true
+          }
+          if (response.data.error === 'invalid_amount') {
+            window.toastr['error'](this.$t('invalid_amount_message'))
+            return false
+          }
+          window.toastr['error'](response.data.error)
+        } catch (err) {
+          this.isLoading = false
+          if (err.response.data.errors.payment_number) {
+            window.toastr['error'](err.response.data.errors.payment_number)
+            return true
+          }
+          window.toastr['error'](err.response.data.message)
         }
-        if (response.data.error === 'invalid_amount') {
-          window.toastr['error'](this.$t('invalid_amount_message'))
-          return false
-        }
-        window.toastr['error'](response.data.error)
       } else {
         let data = {
           ...this.formData,
+          payment_method_id: this.formData.payment_method ? this.formData.payment_method.id : null,
           payment_date: moment(this.formData.payment_date).format('DD/MM/YYYY')
         }
         this.isLoading = true
-        let response = await this.addPayment(data)
-        if (response.data.success) {
-          window.toastr['success'](this.$t('payments.created_message'))
-          this.$router.push('/admin/payments')
-          this.isLoading = true
-          return true
+        try {
+          let response = await this.addPayment(data)
+          if (response.data.success) {
+            window.toastr['success'](this.$t('payments.created_message'))
+            this.$router.push('/admin/payments')
+            this.isLoading = true
+            return true
+          }
+          if (response.data.error === 'invalid_amount') {
+            window.toastr['error'](this.$t('invalid_amount_message'))
+            return false
+          }
+          window.toastr['error'](response.data.error)
+        } catch (err) {
+          this.isLoading = false
+          if (err.response.data.errors.payment_number) {
+            window.toastr['error'](err.response.data.errors.payment_number)
+            return true
+          }
+          window.toastr['error'](err.response.data.message)
         }
-        if (response.data.error === 'invalid_amount') {
-          window.toastr['error'](this.$t('invalid_amount_message'))
-          return false
-        }
-        window.toastr['error'](response.data.error)
       }
     }
   }
